@@ -168,6 +168,9 @@ models/**
 local_model/
 local_model/**
 
+local_embed_model/
+local_embed_model/**
+
 chat_history.json
 .streamlit
 .streamlit/**
