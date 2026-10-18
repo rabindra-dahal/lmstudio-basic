@@ -94,7 +94,6 @@ def generate_markdown_content(messages, sys_prompt):
 # Sidebar Chat Management
 st.sidebar.subheader("Chat Actions")
 
-# Only render the export button if there are active messages in the conversation thread
 if st.session_state.messages:
     md_data = generate_markdown_content(st.session_state.messages, system_prompt)
     st.sidebar.download_button(
@@ -119,6 +118,29 @@ for msg in st.session_state.messages:
 # Lock down input control if backend isn't responding
 chat_placeholder = "Type your message here..." if backend_alive else "Chat disabled: Start backend server in console first."
 user_input = st.chat_input(chat_placeholder, disabled=not backend_alive)
+
+# --- NEW: Live Word & Token Counter Calculations ---
+total_words = 0
+total_estimated_tokens = 0
+
+for msg in st.session_state.messages:
+    text_content = msg["content"]
+    total_words += len(text_content.split())
+    # Standard engineering approximation: characters divided by 4
+    total_estimated_tokens += max(1, len(text_content) // 4)
+
+# Render counter cleanly using small subtitle columns right beneath the chat input box
+col1, col2, col3 = st.columns([1.5, 1.5, 7])
+with col1:
+    st.caption(f"📝 **Total Words:** {total_words}")
+with col2:
+    st.caption(f"📊 **Est. Tokens:** {total_estimated_tokens} / 8192")
+with col3:
+    # Alert the user if the historical context is getting near performance drop limits
+    if total_estimated_tokens > 2048:
+        st.caption("⚠️ *Large context history loaded. CPU latency may increase.*")
+    else:
+        st.caption("")
 
 # Accept user input
 if user_input:
@@ -152,7 +174,7 @@ if user_input:
             response_placeholder.markdown(full_response)
             st.session_state.messages.append({"role": "assistant", "content": full_response})
             save_chat_to_disk(st.session_state.messages)
-            st.rerun() # Forces the sidebar button to refresh right after generation completes
+            st.rerun() 
 
         except requests.exceptions.RequestException as e:
             st.error(f"Error connecting to backend server at {BACKEND_URL}: {e}")
