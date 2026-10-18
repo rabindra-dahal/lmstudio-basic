@@ -76,17 +76,40 @@ def load_chat_from_disk():
             return []
     return []
 
+# Initialize history in session state
+if "messages" not in st.session_state:
+    st.session_state.messages = load_chat_from_disk()
+
+# --- Markdown Export Generator ---
+def generate_markdown_content(messages, sys_prompt):
+    md_text = f"# 🤖 LM Studio Chat Export\n\n"
+    md_text += f"**System Prompt:** `{sys_prompt}`\n"
+    md_text += "---\n\n"
+    
+    for msg in messages:
+        role_label = "👤 **User**" if msg["role"] == "user" else "🤖 **Assistant**"
+        md_text += f"### {role_label}\n{msg['content']}\n\n"
+    return md_text
+
 # Sidebar Chat Management
 st.sidebar.subheader("Chat Actions")
-if st.sidebar.button("🗑️ Clear Chat History"):
+
+# Only render the export button if there are active messages in the conversation thread
+if st.session_state.messages:
+    md_data = generate_markdown_content(st.session_state.messages, system_prompt)
+    st.sidebar.download_button(
+        label="📥 Export Chat to Markdown",
+        data=md_data,
+        file_name="lm_studio_chat_history.md",
+        mime="text/markdown",
+        use_container_width=True
+    )
+
+if st.sidebar.button("🗑️ Clear Chat History", use_container_width=True):
     if os.path.exists(HISTORY_FILE):
         os.remove(HISTORY_FILE)
     st.session_state.messages = []
     st.rerun()
-
-# Initialize history in session state
-if "messages" not in st.session_state:
-    st.session_state.messages = load_chat_from_disk()
 
 # Display historical chat log threads in the UI layout canvas
 for msg in st.session_state.messages:
@@ -129,6 +152,7 @@ if user_input:
             response_placeholder.markdown(full_response)
             st.session_state.messages.append({"role": "assistant", "content": full_response})
             save_chat_to_disk(st.session_state.messages)
+            st.rerun() # Forces the sidebar button to refresh right after generation completes
 
         except requests.exceptions.RequestException as e:
             st.error(f"Error connecting to backend server at {BACKEND_URL}: {e}")
