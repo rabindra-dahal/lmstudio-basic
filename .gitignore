@@ -168,6 +168,8 @@ models/**
 local_model/
 local_model/**
 
+chat_history.json
+
 
 # Spyder project settings
 .spyderproject
