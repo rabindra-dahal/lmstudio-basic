@@ -8,7 +8,7 @@ import os
 # ==============================================================================
 BACKEND_URL = "http://127.0.0.1:8000"
 CHAT_ENDPOINT = f"{BACKEND_URL}/v1/chat/completions"
-HISTORY_FILE = os.path.abspath("./chat_history.json")  # Saves inside your project folder
+HISTORY_FILE = os.path.abspath("./chat_history.json")
 # ==============================================================================
 
 # Setup page layout like LM Studio
@@ -43,7 +43,24 @@ system_prompt = st.sidebar.text_area(
     value="You are a helpful, concise AI assistant."
 )
 temperature = st.sidebar.slider("Temperature", min_value=0.0, max_value=1.5, value=0.7, step=0.1)
-max_tokens = st.sidebar.number_input("Max Tokens", min_value=1, max_value=2048, value=512)
+
+# Dynamic parameter entry with a maximum absolute engine cap of 8192
+max_tokens = st.sidebar.number_input(
+    "Max Tokens", 
+    min_value=1, 
+    max_value=8192, 
+    value=512,
+    help="Limits how long the AI response can be. 1 token ≈ 4 characters."
+)
+
+# --- Dynamic Context Guardrail Alerts ---
+if max_tokens > 2048:
+    st.sidebar.warning(
+        f"⚠️ **High Context Warning:** {max_tokens} tokens might cause slow generation speeds on your laptop CPU. "
+        "Recommended limit is ≤ 2048 tokens."
+    )
+else:
+    st.sidebar.caption(f"💡 Target output limit: ~{int(max_tokens * 0.75)} words.")
 
 # --- Persistence Layer Logic ---
 def save_chat_to_disk(messages):
@@ -67,7 +84,7 @@ if st.sidebar.button("🗑️ Clear Chat History"):
     st.session_state.messages = []
     st.rerun()
 
-# Initialize history in session state by pulling from local disk if it exists
+# Initialize history in session state
 if "messages" not in st.session_state:
     st.session_state.messages = load_chat_from_disk()
 
@@ -86,7 +103,7 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
     st.session_state.messages.append({"role": "user", "content": user_input})
-    save_chat_to_disk(st.session_state.messages)  # Save instantly on user text submission
+    save_chat_to_disk(st.session_state.messages)
 
     # Render assistant placeholder container for real-time streaming
     with st.chat_message("assistant"):
@@ -111,7 +128,7 @@ if user_input:
             
             response_placeholder.markdown(full_response)
             st.session_state.messages.append({"role": "assistant", "content": full_response})
-            save_chat_to_disk(st.session_state.messages)  # Save instantly once generation completes
+            save_chat_to_disk(st.session_state.messages)
 
         except requests.exceptions.RequestException as e:
             st.error(f"Error connecting to backend server at {BACKEND_URL}: {e}")
